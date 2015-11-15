@@ -1,18 +1,19 @@
 package com.example.ankit.simplist;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AbsListView;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ListAdapter;
-import android.widget.TextView;
+import android.widget.*;
 
-import com.example.ankit.simplist.dummy.DummyContent;
+import java.io.*;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A fragment representing a list of Items.
@@ -23,9 +24,16 @@ import com.example.ankit.simplist.dummy.DummyContent;
  * Activities containing this fragment MUST implement the {@link ConfigFragmentInteractionListener}
  * interface.
  */
-public class ConfigFragment extends Fragment implements AbsListView.OnItemClickListener {
+public class ConfigFragment extends Fragment implements AbsListView.OnItemClickListener,
+        AddConfigDialogFragment.AddConfigDialogFragmentListener, RemoveConfigDialogFragment.RemoveConfigDialogFragmentListener {
+
+    private static Logger LOGGER = Logger.getLogger(ConfigFragment.class.getCanonicalName());
+
+    private static final String FILENAME = "config_file";
 
     private ConfigFragmentInteractionListener mListener;
+
+    private ConfigContent configContent = new ConfigContent();
 
     /**
      * The fragment's ListView/GridView.
@@ -53,18 +61,80 @@ public class ConfigFragment extends Fragment implements AbsListView.OnItemClickL
     public ConfigFragment() {
     }
 
+    public static byte[] serialize(Object obj) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream os = new ObjectOutputStream(out);
+        os.writeObject(obj);
+        return out.toByteArray();
+    }
+    public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = new ObjectInputStream(in);
+        return is.readObject();
+    }
+
+
+    private void loadConfigItems(Context context) {
+        FileInputStream fis = null;
+        try {
+            fis = context.openFileInput(FILENAME);
+            byte[] data = new byte[1024];
+            fis.read(data, 0, 1024);
+            this.configContent.addAllConfigElements((List<ConfigElement>)deserialize(data));
+        } catch (IOException e) {
+            //LOGGER.log(Level.WARNING, e.getMessage());
+        } catch (ClassNotFoundException e) {
+            LOGGER.log(Level.WARNING, e.getMessage());
+        } finally {
+            if(fis!=null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void writeConfigItems(Context context) {
+        FileOutputStream fos = null;
+        try {
+            fos = context.openFileOutput(FILENAME, Context.MODE_PRIVATE);
+            fos.write(serialize(this.configContent.getConfigElements()));
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, e.getMessage());
+        } finally {
+            if(fos!=null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, e.getMessage());
+                }
+            }
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (getArguments() != null) {
-//            mParam1 = getArguments().getString(ARG_PARAM1);
-//            mParam2 = getArguments().getString(ARG_PARAM2);
-        }
+        final ConfigFragment fragment = this;
+
+        loadConfigItems(getActivity());
 
         // TODO: Change Adapter to display your content
-        mAdapter = new ArrayAdapter<DummyContent.DummyItem>(getActivity(),
-                android.R.layout.simple_list_item_1, android.R.id.text1, DummyContent.ITEMS);
+        mAdapter = new ArrayAdapter<ConfigElement>(getActivity(),
+                android.R.layout.simple_list_item_1, android.R.id.text1, this.configContent.getConfigElements());
+
+        FloatingActionButton fab = (FloatingActionButton) this.getActivity().findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                AddConfigDialogFragment newFragment = new AddConfigDialogFragment();
+                newFragment.setListener(fragment);
+                newFragment.show(getFragmentManager(), "Add Item");
+            }
+        });
     }
 
     @Override
@@ -101,25 +171,25 @@ public class ConfigFragment extends Fragment implements AbsListView.OnItemClickL
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        if (null != mListener) {
-            // Notify the active callbacks interface (the activity, if the
-            // fragment is attached to one) that an item has been selected.
-            mListener.onFragmentInteraction(DummyContent.ITEMS.get(position).id);
-        }
+        RemoveConfigDialogFragment newFragment = new RemoveConfigDialogFragment();
+        ConfigFragment fragment = this;
+        newFragment.setListener(fragment);
+        newFragment.setConfigElement(this.configContent.getConfigElement(position));
+        newFragment.show(getFragmentManager(), "Config Item Options");
     }
 
-    /**
-     * The default content for this Fragment has a TextView that is shown when
-     * the list is empty. If you would like to change the text, call this method
-     * to supply the text it should use.
-     */
-    public void setEmptyText(CharSequence emptyText) {
-        View emptyView = mListView.getEmptyView();
-
-        if (emptyView instanceof TextView) {
-            ((TextView) emptyView).setText(emptyText);
-        }
-    }
+//    /**
+//     * The default content for this Fragment has a TextView that is shown when
+//     * the list is empty. If you would like to change the text, call this method
+//     * to supply the text it should use.
+//     */
+//    public void setEmptyText(CharSequence emptyText) {
+//        View emptyView = mListView.getEmptyView();
+//
+//        if (emptyView instanceof TextView) {
+//            ((TextView) emptyView).setText(emptyText);
+//        }
+//    }
 
     /**
      * This interface must be implemented by activities that contain this
@@ -134,6 +204,19 @@ public class ConfigFragment extends Fragment implements AbsListView.OnItemClickL
     public interface ConfigFragmentInteractionListener {
         // TODO: Update argument type and name
         public void onFragmentInteraction(String id);
+    }
+
+    @Override
+    public void saveItem(String itemName, String sensorId) {
+        this.configContent.addConfigElement(new ConfigElement(sensorId, itemName));
+        writeConfigItems(getActivity());
+    }
+
+    @Override
+    public void removeItem(String itemName, String sensorId) {
+        this.configContent.removeConfigElement(sensorId);
+        writeConfigItems(getActivity());
+        ((BaseAdapter)mListView.getAdapter()).notifyDataSetChanged();
     }
 
 }

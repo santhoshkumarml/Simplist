@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array
+            name="config_item_option_array">
+        <item>Remove Item</item>
+        <item>View Properties</item>
+    </string-array>
+</resources>

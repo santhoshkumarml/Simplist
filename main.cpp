@@ -370,18 +370,18 @@ int main()
 	printf("DCOUNT %ld\r\n", dcount);
 	
 	if(lcount >= short_char_length_thresh){
-	  lux_data = 0xffff;
+	  lux_data = 0x000F;
 	  printf("DASH !\r\n");
 	}else{
-	  lux_data = 0xaaaa;
+	  lux_data = 0x00F0;
 	  printf("DOT !\r\n");
 	}
 	
 	if(dcount >= max_silence){
-	  lux_data = 0x0e0f;
+	  lux_data |= 0x0F00;
 	  printf("DSPACE !\r\n");
 	}else{
-	  lux_data = 0x0e10;
+	  lux_data |= 0xF000;
 	  printf("SPACE !\r\n");
 	}
 	

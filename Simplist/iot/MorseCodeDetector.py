@@ -64,10 +64,10 @@ def encodeToMorse(message):
 print decodeMorse(testCode)
 
 dev_mp = {
-	  0xaaaa : '.',
-	  0xffff : '-',
-	  0x0e0f : ' ',
-	  0x0e10 : '/'
+	  0x000F : '.',
+	  0x00F0 : '-',
+	  0x0F00 : ' ',
+	  0xF000 : '/'
 	 }
 
 rev_dev_mp = dict((v,k) for (k,v) in dev_mp.items())
@@ -79,8 +79,9 @@ class MorseCodeDetector(object):
 
     def handle_request(self, json_data):
       info = json.loads(json_data)
-      sym = dev_mp.get(info[LUX], '')
-      self.text =  self.text + sym
+      for k in dev_mp.keys():
+	if k & info[LUX]:
+	  self.text = self.text + dev_mp[info[LUX]]
 
     def get_in_progress(self):
       return self.in_progress
@@ -90,5 +91,5 @@ class MorseCodeDetector(object):
 
 mcd = MorseCodeDetector()
 for char in testCode:
-  mcd.handle_request(json.dumps({LUX : char}))
+  mcd.handle_request(json.dumps({LUX : rev_dev_mp[char]}))
 mcd.get_text()

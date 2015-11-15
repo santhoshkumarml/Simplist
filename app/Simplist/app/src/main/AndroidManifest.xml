@@ -27,6 +27,11 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBar" >
         </activity>
+
+        <service
+            android:name=".LocationService"
+            android:exported="false" >
+        </service>
     </application>
 
 </manifest>

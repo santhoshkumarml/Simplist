@@ -1,97 +1,114 @@
 package com.example.ankit.simplist;
 
-import android.app.IntentService;
-import android.content.Intent;
+import android.app.Service;
+import java.util.logging.Logger;
 import android.content.Context;
-import android.location.Criteria;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.os.IBinder;
 import android.location.Location;
-import android.location.LocationManager;
 import android.location.LocationListener;
+import android.location.LocationManager;
+import android.location.Criteria;
+import android.support.v4.content.ContextCompat;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.logging.Logger;
 
-/**
- * An {@link IntentService} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- * <p/>
- * TODO: Customize class - update intent actions, extra parameters and static
- * helper methods.
- */
-public class LocationService extends IntentService {
-    // TODO: Rename actions, choose action names that describe tasks that this
-    // IntentService can perform, e.g. ACTION_FETCH_NEW_ITEMS
-    private static final String ACTION_FOO = "com.example.ankit.simplist.action.FOO";
-//    private static final String ACTION_BAZ = "com.example.ankit.simplist.action.BAZ";
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.widget.Toast;
 
-//    // TODO: Rename parameters
-//    private static final String EXTRA_PARAM1 = "com.example.ankit.simplist.extra.PARAM1";
-//    private static final String EXTRA_PARAM2 = "com.example.ankit.simplist.extra.PARAM2";
+public class LocationService extends Service {
 
-    /**
-     * Starts this service to perform action Foo with the given parameters. If
-     * the service is already performing a task this action will be queued.
-     *
-     * @see IntentService
-     */
-    // TODO: Customize helper method
-    public static void startActionFoo(Context context) {
-        Intent intent = new Intent(context, LocationService.class);
-        intent.setAction(ACTION_FOO);
-//        intent.putExtra(EXTRA_PARAM1, param1);
-//        intent.putExtra(EXTRA_PARAM2, param2);
-        context.startService(intent);
-    }
+    private static final Logger LOGGER = Logger.getLogger(LocationService.class.getCanonicalName());
+    private Object monitor = new Object();
 
-    /**
-     * Starts this service to perform action Baz with the given parameters. If
-     * the service is already performing a task this action will be queued.
-     *
-     * @see IntentService
-     */
-    // TODO: Customize helper method
-//    public static void startActionBaz(Context context, String param1, String param2) {
-//        Intent intent = new Intent(context, LocationService.class);
-//        intent.setAction(ACTION_BAZ);
-//        intent.putExtra(EXTRA_PARAM1, param1);
-//        intent.putExtra(EXTRA_PARAM2, param2);
-//        context.startService(intent);
-//    }
+    private NotificationManager nm;
+    private Timer timer = new Timer();
+    private TimerTask  task = null;
+
+    LocationManager locationManager;
+    private String provider = null;
+    private volatile Location currentLocation = null;
+    private LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            LOGGER.info("Location update received");
+            synchronized (monitor){
+                currentLocation = location;
+                LOGGER.info(currentLocation.toString());
+            }
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
+    };
+
 
     public LocationService() {
-        super("LocationService");
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
-        if (intent != null) {
-            final String action = intent.getAction();
-            if (ACTION_FOO.equals(action)) {
+    public IBinder onBind(Intent intent) {
+        // TODO: Return the communication channel to the service.
+        return null;
+    }
 
-            }
-//                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-//                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-                handleActionFoo();
-//            } else if (ACTION_BAZ.equals(action)) {
-//                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-//                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-//                handleActionBaz(param1, param2);
-//            }
+    @Override
+    public void onCreate(){
+        super.onCreate();
+        nm = (NotificationManager)this.getSystemService(Context.NOTIFICATION_SERVICE);
+        locationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
+        startLocationUpdate();
+//        Toast.makeText(this,"Service created at " + time.getTime(), Toast.LENGTH_LONG).show();
+//        CharSequence text = getText(R.string.service_started);
+//        showNotification(text);
+//        startTimer();
+
+    }
+
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
+        if(locationManager != null){
+         if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+                locationManager.removeUpdates(locationListener);
+         }
         }
     }
 
-    /**
-     * Handle action Foo in the provided background thread with the provided
-     * parameters.
-     */
-    private void handleActionFoo() {
-        // TODO: Handle action Foo
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
+    private void startLocationUpdate(){
+        synchronized (monitor){
+            Criteria criteria = new Criteria();
+            criteria.setAccuracy(Criteria.NO_REQUIREMENT);
+            provider = locationManager.getBestProvider(criteria, true);
+            if(provider == null){
+                LOGGER.info("no location provider");
+            }
+            if(locationManager != null){
+                if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+                    locationManager.requestLocationUpdates(provider, 5000L, -1, locationListener);
+                }
+            }
 
-    /**
-     * Handle action Baz in the provided background thread with the provided
-     * parameters.
-     */
-//    private void handleActionBaz(String param1, String param2) {
-//        // TODO: Handle action Baz
-//        throw new UnsupportedOperationException("Not yet implemented");
-//    }
+        }
+    }
 }
+
+

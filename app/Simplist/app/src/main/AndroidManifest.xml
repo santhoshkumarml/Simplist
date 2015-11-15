@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.READ_PROFILE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -30,7 +31,8 @@
 
         <service
             android:name=".LocationService"
-            android:exported="false" >
+            android:enabled="true"
+            android:exported="true" >
         </service>
     </application>
 

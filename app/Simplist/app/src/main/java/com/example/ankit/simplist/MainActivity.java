@@ -1,24 +1,29 @@
 package com.example.ankit.simplist;
 
-import android.content.Intent;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.*;
 import android.widget.TextView;
 
+import java.util.logging.Logger;
+
 public class MainActivity extends AppCompatActivity implements ConfigFragment.ConfigFragmentInteractionListener    {
+
+    private static final Logger LOGGER = Logger.getLogger(MainActivity.class.getCanonicalName());
+    private Object monitor = new Object();
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -45,13 +50,16 @@ public class MainActivity extends AppCompatActivity implements ConfigFragment.Co
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
         mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
-        startService(new Intent(MainActivity.this, LocationService.class));
+
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
         mViewPager.setAdapter(mSectionsPagerAdapter);
 
         TabLayout tabLayout = (TabLayout) findViewById(R.id.tabs);
         tabLayout.setupWithViewPager(mViewPager);
+
+        this.locationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
+        startLocationUpdate();
 
     }
 
@@ -153,4 +161,57 @@ public class MainActivity extends AppCompatActivity implements ConfigFragment.Co
     public void onFragmentInteraction(String id) {
 
     }
+
+
+    LocationManager locationManager;
+
+    private String provider = null;
+    private volatile Location currentLocation = null;
+
+    private LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            LOGGER.info("Location update received");
+            synchronized (monitor){
+                currentLocation = location;
+                LOGGER.info(currentLocation.toString());
+            }
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+            LOGGER.info("Status Chaged"+provider);
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+            LOGGER.info("Provider Enabled"+provider);
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+            LOGGER.info("Provider Disbled"+provider);
+        }
+    };
+
+    private void startLocationUpdate(){
+       synchronized (monitor){
+            Criteria criteria = new Criteria();
+            criteria.setAccuracy(Criteria.ACCURACY_FINE);
+
+            this.provider = this.locationManager.getBestProvider(criteria, true);
+            if(provider == null){
+                LOGGER.info("no location provider");
+            }
+            if(this.locationManager != null){
+                if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED){
+                    this.locationManager.requestLocationUpdates(provider, 0L, 0, this.locationListener);
+                }
+            }
+            this.currentLocation = this.locationManager.getLastKnownLocation(provider);
+            LOGGER.info("Location Updates Will Start, currentLocation "+this.currentLocation);
+       }
+    }
+
 }

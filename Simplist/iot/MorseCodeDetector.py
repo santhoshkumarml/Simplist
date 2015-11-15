@@ -3,83 +3,93 @@ import json
 LUX = 'lux'
 DEVICE_ID = 'DEVICEID'
 
-mp = {
-        'A': '.-',              'a': '.-',
-        'B': '-...',            'b': '-...',
-        'C': '-.-.',            'c': '-.-.',
-        'D': '-..',             'd': '-..',
-        'E': '.',               'e': '.',
-        'F': '..-.',            'f': '..-.',
-        'G': '--.',             'g': '--.',
-        'H': '....',            'h': '....',
-        'I': '..',              'i': '..',
-        'J': '.---',            'j': '.---',
-        'K': '-.-',             'k': '-.-',
-        'L': '.-..',            'l': '.-..',
-        'M': '--',              'm': '--',
-        'N': '-.',              'n': '-.',
-        'O': '---',             'o': '---',
-        'P': '.--.',            'p': '.--.',
-        'Q': '--.-',            'q': '--.-',
-        'R': '.-.',             'r': '.-.',
-        'S': '...',             's': '...',
-        'T': '-',               't': '-',
-        'U': '..-',             'u': '..-',
-        'V': '...-',            'v': '...-',
-        'W': '.--',             'w': '.--',
-        'X': '-..-',            'x': '-..-',
-        'Y': '-.--',            'y': '-.--',
-        'Z': '--..',            'z': '--..',
-        '0': '-----',		'.': '.-.-.-',
-        '1': '.----',           
-        '2': '..---',           
-        '3': '...--',           
-        '4': '....-',           
-        '5': '.....',           
-        '6': '-....',           
-        '7': '--...',           
-        '8': '---..',           
-        '9': '----.',
+morseAlphabet ={
+   "A" : ".-",
+   "B" : "-...",
+   "C" : "-.-.",
+   "D" : "-..",
+   "E" : ".",
+   "F" : "..-.",
+   "G" : "--.",
+   "H" : "....",
+   "I" : "..",
+   "J" : ".---",
+   "K" : "-.-",
+   "L" : ".-..",
+   "M" : "--",
+   "N" : "-.",
+   "O" : "---",
+   "P" : ".--.",
+   "Q" : "--.-",
+   "R" : ".-.",
+   "S" : "...",
+   "T" : "-",
+   "U" : "..-",
+   "V" : "...-",
+   "W" : ".--",
+   "X" : "-..-",
+   "Y" : "-.--",
+   "Z" : "--..",
+   " " : "/"
 }
 
-rev_mp = dict((v,k) for (k,v) in mp.items())
+inverseMorseAlphabet=dict((v,k) for (k,v) in morseAlphabet.items())
 
-def decode(i):
-  if i in rev_mp: return rev_mp[i]
-  return None
 
-class MorseCodeDetector():
-    def __init__(self, deviceId):
-        self.deviceId = deviceId
-        self.buffer = ''
+testCode = ".... . .-.. .-.. --- / -.. .- .. .-.. -.-- / .--. .-. --- --. .-. .- -- -- . .-. / --. --- --- -.. / .-.. ..- -.-. -.- / --- -. / - .... . / -.-. .... .- .-.. .-.. . -. --. . ... / - --- -.. .- -.-- "
+
+# parse a morse code string positionInString is the starting point for decoding
+def decodeMorse(code, positionInString = 0):   
+   if positionInString < len(code):
+       morseLetter = ""
+       for key,char in enumerate(code[positionInString:]):
+           if char == " ":
+               positionInString = key + positionInString + 1
+               letter = inverseMorseAlphabet[morseLetter]
+               return letter + decodeMorse(code, positionInString)
+           
+           else:
+               morseLetter += char
+   else:
+       return ""
+   
+#encode a message in morse code, spaces between words are represented by '/'
+def encodeToMorse(message):
+   encodedMessage = ""
+   for char in message[:]:
+       encodedMessage += morseAlphabet[char.upper()] + " "
+           
+   return encodedMessage
+
+print decodeMorse(testCode)
+
+dev_mp = {
+	  0x000F : '-',
+	  0x00F0 : '.',
+	  0x0F00 : '/',
+	  0xF000 : ' '
+	 }
+
+rev_dev_mp = dict((v,k) for (k,v) in dev_mp.items())
+
+class MorseCodeDetector(object):
+    def __init__(self):
         self.text = ''
         self.in_progress = False
 
     def handle_request(self, json_data):
-      if not self.in_progress:
-	self.in_progress = true
-        info = json.load(json_data)
-        sym = {
-	    0xaaaa : '.',
-	    0xffff : '_',
-	    0x0e0f : ' '
-	    0x0e10 : mp['.']
-	  }.get(info[LUX], '')		
-	
-	if sym == mp['.']:
-	  self.in_progress = False
-	  self.text = self.text + mp['.']
-	else:
-	  self.in_progress = True
-	  self.buffer = self.buffer + sym
-	  
-	  char = decode(self.buffer)
-	  if char:
-	    self.text = self.text + char
-	    self.buffer = ''
+      info = json.loads(json_data)
+      for k in dev_mp.keys():
+	if k & info[LUX]:
+	  self.text = self.text + dev_mp[info[LUX]]
 
-	def get_in_progress():
-	  return self.in_progress
-		
-	def get_text():
-	  return self.text
+    def get_in_progress(self):
+      return self.in_progress
+    
+    def get_text(self):
+      return decodeMorse(self.text)
+
+mcd = MorseCodeDetector()
+for char in testCode:
+  mcd.handle_request(json.dumps({LUX : rev_dev_mp[char]}))
+mcd.get_text()

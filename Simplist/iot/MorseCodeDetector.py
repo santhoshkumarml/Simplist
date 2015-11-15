@@ -64,10 +64,10 @@ def encodeToMorse(message):
 print decodeMorse(testCode)
 
 dev_mp = {
-	  0x000F : '.',
-	  0x00F0 : '-',
-	  0x0F00 : ' ',
-	  0xF000 : '/'
+	  0x000F : '-',
+	  0x00F0 : '.',
+	  0x0F00 : '/',
+	  0xF000 : ' '
 	 }
 
 rev_dev_mp = dict((v,k) for (k,v) in dev_mp.items())

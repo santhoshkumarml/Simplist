@@ -337,37 +337,55 @@ int main()
     /*
      * Main data acquisition loop
      */
-    pckt_time = 2;
+    pckt_time = 10;
     i = 0;
     
-    uint16_t  lux_thresh = 50;
-    uint16_t  dash_delay = 800;
+    uint16_t  lux_thresh = 70;
+    uint16_t short_char_length_thresh = 3500;
+    uint16_t max_silence = 4000;
     bool hit_thresh = false;    
     
     do {
 	hit_thresh = false;
 	while(!hit_thresh){
 	  lux_data = evbAmbLight->getData();
-	  num_whole = lux_data * 24 / 100;        // 16000 lux full scale .24 lux per bit
-	  num_frac = lux_data * 24 % 100;
-	  
 	  if(lux_data >= lux_thresh)
 	    hit_thresh = true;
 	}
-	osDelay(dash_delay); //if on after this, has to be a dot
-	lux_data = evbAmbLight->getData();
-	num_whole = lux_data * 24 / 100;        // 16000 lux full scale .24 lux per bit
-	num_frac = lux_data * 24 % 100;
 	
-	if(lux_data >= lux_thresh){
+	uint16_t  lcount = 0;
+	uint16_t  dcount = 0;
+	while(lux_data >= lux_thresh){
+		lcount++;
+		lux_data = evbAmbLight->getData();
+	}
+	
+	printf("LCOUNT %ld\r\n", lcount);
+	
+	while(lux_data < lux_thresh && dcount < max_silence){
+		dcount++;
+		lux_data = evbAmbLight->getData();
+	}
+		
+	printf("DCOUNT %ld\r\n", dcount);
+	
+	if(lcount >= short_char_length_thresh){
 	  lux_data = 0xffff;
 	  printf("DASH !\r\n");
 	}else{
 	  lux_data = 0xaaaa;
 	  printf("DOT !\r\n");
-	}		
+	}
 	
-        if (++i % pckt_time == 0) { // check packet counter will send packet every 2-5-10 data collection loops
+	if(dcount >= max_silence){
+	  lux_data = 0x0e0f;
+	  printf("DSPACE !\r\n");
+	}else{
+	  lux_data = 0x0e10;
+	  printf("SPACE !\r\n");
+	}
+	
+        if (i % pckt_time == 0) { // check packet counter will send packet every 2-5-10 data collection loops
             mdot_data.clear();
             mdot_data.push_back(0x05);          // key for Current Ambient Light Value
             converts.f_u = lux_data;                // data is 16 bits unsigned            

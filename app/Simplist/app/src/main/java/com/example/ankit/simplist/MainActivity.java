@@ -18,6 +18,8 @@ import android.support.v7.widget.Toolbar;
 import android.view.*;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity implements ConfigFragment.ConfigFragmentInteractionListener    {
@@ -129,6 +131,8 @@ public class MainActivity extends AppCompatActivity implements ConfigFragment.Co
 
 
     public static class NotificationFragment extends Fragment {
+
+        List<ConfigElement> notificationElements = new ArrayList<ConfigElement>();
         /**
          * The fragment argument representing the section number for this
          * fragment.

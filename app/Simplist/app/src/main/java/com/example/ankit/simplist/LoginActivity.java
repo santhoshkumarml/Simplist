@@ -3,35 +3,43 @@ package com.example.ankit.simplist;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
 import android.app.LoaderManager.LoaderCallbacks;
-
 import android.content.CursorLoader;
+import android.content.Intent;
 import android.content.Loader;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
-
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.NameValuePair;
+import org.apache.commons.httpclient.methods.PostMethod;
 
+import javax.net.ssl.HttpsURLConnection;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -39,6 +47,9 @@ import static android.Manifest.permission.READ_CONTACTS;
  * A login screen that offers login via email/password.
  */
 public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
+
+
+    private static final Logger LOGGER = Logger.getLogger(LoginActivity.class.getCanonicalName());
 
     /**
      * Id to identity READ_CONTACTS permission request.
@@ -305,6 +316,33 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             mPassword = password;
         }
 
+
+        public void postAuthenication(){
+            HashMap<String, String> params= new HashMap<String, String>();
+            String result = performPostCall("http://10.0.6.20:12345/home/"+mEmail+"/"+mPassword, params);
+
+            HttpClient httpClient = new HttpClient();
+
+
+            PostMethod post = new PostMethod("http://jakarata.apache.org/");
+            NameValuePair[] data = {
+                    new NameValuePair("username", mEmail),
+                    new NameValuePair("password", mPassword)
+            };
+
+            post.setRequestBody(data);
+
+            try {
+                httpClient.executeMethod(post);
+            } catch (Exception e) {
+
+            }
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            ServerResponse apiTokenResponse = gson.fromJson(result, ServerResponse.class);
+            Constants.apiToken = apiTokenResponse.getToken();
+        }
+
         @Override
         protected Boolean doInBackground(Void... params) {
             // TODO: attempt authentication against a network service.
@@ -316,13 +354,14 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                 return false;
             }
 
-            for (String credential : DUMMY_CREDENTIALS) {
-                String[] pieces = credential.split(":");
-                if (pieces[0].equals(mEmail)) {
-                    // Account exists, return true if the password matches.
-                    return pieces[1].equals(mPassword);
-                }
-            }
+//            for (String credential : DUMMY_CREDENTIALS) {
+//                String[] pieces = credential.split(":");
+//                if (pieces[0].equals(mEmail)) {
+//                    // Account exists, return true if the password matches.
+//                    return pieces[1].equals(mPassword);
+//                }
+//            }
+            postAuthenication();
 
             // TODO: register the new account here.
             return true;
@@ -349,5 +388,75 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             showProgress(false);
         }
     }
+
+
+
+
+    private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException{
+        StringBuilder result = new StringBuilder();
+        boolean first = true;
+        for(Map.Entry<String, String> entry : params.entrySet()){
+            if (first)
+                first = false;
+            else
+                result.append("&");
+
+            result.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+            result.append("=");
+            result.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+        }
+
+        return result.toString();
+    }
+
+    public String performPostCall(String requestURL,
+                                   HashMap<String, String> postDataParams) {
+
+        URL url;
+        String response = "";
+        try {
+            url = new URL(requestURL);
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setReadTimeout(15000);
+            conn.setConnectTimeout(15000);
+            conn.setRequestMethod("GET");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+
+
+            OutputStream os = conn.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(os, "UTF-8"));
+            writer.write(getPostDataString(postDataParams));
+
+            writer.flush();
+            writer.close();
+            os.close();
+            int responseCode=conn.getResponseCode();
+
+            LOGGER.log(Level.WARNING, "-----------------------------------------------");
+            LOGGER.log(Level.WARNING, String.valueOf(responseCode));
+            if (responseCode == HttpsURLConnection.HTTP_OK) {
+                String line;
+                BufferedReader br=new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                while ((line=br.readLine()) != null) {
+                    response+=line;
+                }
+                LOGGER.log(Level.WARNING, response);
+            }
+            else {
+                response="";
+
+            }
+            LOGGER.log(Level.WARNING, "-----------------------------------------------");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return response;
+    }
+
+
 }
 
